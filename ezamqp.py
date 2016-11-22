@@ -57,7 +57,7 @@ def _tstamp():
     """Time as an integer amount of seconds."""
     return round(datetime.datetime.utcnow().timestamp())
 
-if hasattr(ayncio.BaseEventLoop, "create_future"):
+if hasattr(asyncio.BaseEventLoop, "create_future"):
     def _create_future(loop):
         return loop.create_future()
 else:

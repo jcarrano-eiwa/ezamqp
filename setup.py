@@ -6,7 +6,7 @@ def readme():
         return f.read()
 
 setup(name='ezamqp',
-      version='0.1.0',
+      version='0.1.1',
       description='Remote Procedure Calls for AMQP using aioamqp',
       long_description=readme(),
       classifiers=[
