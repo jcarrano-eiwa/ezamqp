@@ -57,6 +57,14 @@ def _tstamp():
     """Time as an integer amount of seconds."""
     return round(datetime.datetime.utcnow().timestamp())
 
+if hasattr(ayncio.BaseEventLoop, "create_future"):
+    def _create_future(loop):
+        return loop.create_future()
+else:
+    logging.warning("ayncio.BaseEventLoop does not have a create_future method")
+    def _create_future(loop):
+        return asyncio.Future()
+
 class Queue:
     """Manage AMQP queues.
 
@@ -441,7 +449,8 @@ class RPC(RPC_):
         """
         # The correlation_id MUST be a string (why????)
         cid = str(next(self._correlation_gen))
-        future = self._loop.create_future()
+        future = _create_future(self._loop)
+
         self._open_responses[cid] = future
 
         rpc_properties = {'reply_to': self.response_queue,
