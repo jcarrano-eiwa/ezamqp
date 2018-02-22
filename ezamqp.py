@@ -14,9 +14,8 @@ import logging
 
 import aioamqp
 
-__author__ = [  "Juan Carrano <jc@eiwa.ag>"]
+__author__ = [  "Juan Carrano <juan@carrano.com.ar>"]
 __version__ = "0.1.0"
-__copyright__ = "Copyright 2016 EIWA S.A. All rights reserved."
 __license__ = """MIT"""
 
 logger = logging.getLogger(__name__)
