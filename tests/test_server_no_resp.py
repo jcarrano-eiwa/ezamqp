@@ -24,7 +24,7 @@ async def setup(loop):
 
     rpcman = ezamqp.RPC_(channel, 'amq.topic')
 
-    await rpcman.register_rpc_('adder', 'adder', adder)
+    await rpcman.register_rpc_('adder', 'adder.#', adder)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(setup(loop))

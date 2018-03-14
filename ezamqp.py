@@ -244,9 +244,10 @@ class RPC_(Queue):
 
         props = {'content_type': ctype, 'content_encoding': cenc,
                  'timestamp': _tstamp()}
+        props.update(properties)
 
         return publish_method(data, proc_name,
-                                properties=properties, mandatory=mandatory,
+                                properties=props, mandatory=mandatory,
                                 immediate=immediate)
 
     def rpc_(self, proc_name, mandatory = False, immediate = False,
