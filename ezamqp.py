@@ -173,10 +173,12 @@ class RPC_(Queue):
     * A new endpoint type "rpc_".
     * A method for serializing arguments and publishing the message.
 
-    Two signatures for user callbacks are supported. The standard one is:
+    Several signatures for user callbacks are supported. The standard one is::
+
         f(*args, **kwargs)
 
-    The extended version is:
+    The extended version is::
+
         f(proc_name, queue_name, *args, **kwargs)
 
     where proc_name is the name that was called on the client side and
@@ -187,6 +189,11 @@ class RPC_(Queue):
 
     Indicate the type of callback you will be using with the `extended`
     parameter of `RPC_.register_rpc_`
+
+    Setting extended=None disables callback wrapping and the signature becomes
+    the sames as for the Queue class::
+
+        f(channel, body, envelope, properties)
     """
 
     # Server methods
@@ -197,13 +204,15 @@ class RPC_(Queue):
         if ack_mode == ACK.receive:
             await self.channel.basic_client_ack(envelope.delivery_tag)
 
-        d = json.loads(body.decode("utf-8"))
-
         try:
-            if extended:
-                coro_or_r = f(d['proc_name'], channel, *d['args'], **d['kwargs'])
+            if extended is None:
+                coro_or_r = f(channel, body, envelope, properties)
             else:
-                coro_or_r = f(*d['args'], **d['kwargs'])
+                d = self.decode_args(body.decode("utf-8"))
+                if extended:
+                    coro_or_r = f(d['proc_name'], channel, *d['args'], **d['kwargs'])
+                else:
+                    coro_or_r = f(*d['args'], **d['kwargs'])
 
             if isinstance(coro_or_r, collections.abc.Coroutine):
                 r = await coro_or_r
@@ -282,6 +291,10 @@ class RPC_(Queue):
              'kwargs': kwargs}
 
         return json.dumps(d).encode("utf-8"), "application/json", "utf-8"
+
+    @staticmethod
+    def decode_args(body):
+        return json.loads(body.decode("utf-8"))
 
 
 class RemoteException(Exception):
