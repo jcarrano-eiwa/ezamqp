@@ -208,7 +208,7 @@ class RPC_(Queue):
             if extended is None:
                 coro_or_r = f(channel, body, envelope, properties)
             else:
-                d = self.decode_args(body.decode("utf-8"))
+                d = self.decode_args(body)
                 if extended:
                     coro_or_r = f(d['proc_name'], channel, *d['args'], **d['kwargs'])
                 else:
