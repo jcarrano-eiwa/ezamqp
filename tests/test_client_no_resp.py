@@ -6,8 +6,7 @@ import sys
 
 import aioamqp
 
-import ezamqp
-
+from context import ezamqp
 
 async def example():
     transport, protocol = await aioamqp.connect('172.17.0.2',

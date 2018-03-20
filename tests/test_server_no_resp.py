@@ -3,7 +3,7 @@ import sys
 
 import aioamqp
 
-import ezamqp
+from context import ezamqp
 
 import sys
 

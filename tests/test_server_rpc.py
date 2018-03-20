@@ -4,7 +4,7 @@ import logging
 
 import aioamqp
 
-import ezamqp
+from context import ezamqp
 
 import sys
 
@@ -27,7 +27,7 @@ async def setup(loop):
 
     rpcman = ezamqp.RPC(loop, channel, 'amq.topic')
 
-    await rpcman.start()
+    #await rpcman.start()
 
     # Lets listen for a topic
     await rpcman.register_rpc('divider', 'divider.*', divider)

@@ -15,7 +15,7 @@ import logging
 import aioamqp
 
 __author__ = [  "Juan Carrano <juan@carrano.com.ar>"]
-__version__ = "0.1.0"
+__version__ = "0.1.3"
 __license__ = """MIT"""
 
 logger = logging.getLogger(__name__)
@@ -35,18 +35,42 @@ class ACK(enum.Enum):
     process = 2
     success = 3
 
-def _endpoint_as(endpoint_type, topic, queue_name, f,
+class Match:
+    def __init__(self, **headers):
+        self.options = headers
+        self.options['x-match'] = self.x_match
+
+class MatchAny(Match):
+    """Queue binding options for a header exchange. Deliver if any matches"""
+    x_match = 'any'
+
+class MatchAll(Match):
+    """Queue binding options for a header exchange. Deliver if all matches"""
+    x_match = 'all'
+
+def _endpoint_as(endpoint_type, routing, queue_name, f,
                                             **queue_declare_kwargs):
-    f._queue_topic = topic
+    f._queue_routing = routing
     f._queue_name = queue_name
     f._queue_kwargs = queue_declare_kwargs
     f._endp_type = endpoint_type
 
     return f
 
-def endpoint(endpoint_type, topic = None, queue_name = '',
+def endpoint(endpoint_type, routing = None, queue_name = '',
                                                 **queue_declare_kwargs):
-    return functools.partial(_endpoint_as, endpoint_type, topic, queue_name,
+    """Decorator to mark functions as queue endpoints. All that this does is
+    add additional attribures to the function object that can be read by
+    Queue.autoregister().
+
+    Parameters
+    ----------
+    endpoint_type: One of 'queue', 'rpc_' or 'rpc'. Subclasses or Queue (or RPC*)
+        can support other types.
+    routing: String (if the exchange is a topic or direnct exchange)
+        or instance of MatchAny or MatchAll if it is a header exchange.
+    """
+    return functools.partial(_endpoint_as, endpoint_type, routing, queue_name,
                             **queue_declare_kwargs)
 
 def _prefix(prefix, string):
@@ -93,7 +117,8 @@ class Queue:
             queue_name: Name of the queue (string). Can be empty.
             routing_key: Key or pattern to bind. If the exchange is a
                     topic exchange, the `routing_key` can be a pattern
-                    like *.us.stock.#
+                    like *.us.stock.#. If the exchange is a headers exchange
+                    it can be an instance of Match.
             function: Coroutine to be used as function. The function
                     must have the the signature:
                         f(channel, body, envelope, properties)
@@ -112,8 +137,13 @@ class Queue:
         _queue_name = q['queue']
         logger.debug("Created queue: %s", _queue_name)
 
-        await self.channel.queue_bind(_queue_name, self.exchange_name,
+        if isinstance(routing_key, Match):
+            await self.channel.queue_bind(_queue_name, self.exchange_name, '',
+                                            arguments=routing_key.options)
+        else:
+            await self.channel.queue_bind(_queue_name, self.exchange_name,
                                                         routing_key)
+
         await self.channel.basic_consume(function, _queue_name,
                                     exclusive=exclusive, no_ack=no_ack)
 
@@ -122,7 +152,7 @@ class Queue:
         return self.channel.publish(data, self.exchange_name, routing_key,
                                     **kwargs)
 
-    def register_x(self, endp_type, queue_name, queue_topic, f,
+    def register_x(self, endp_type, queue_name, queue_routing, f,
                                                             **kwargs):
         registerer_name = "register_{}".format(endp_type)
         # prevent runaway recursion
@@ -136,15 +166,19 @@ class Queue:
 
         kwargs = ChainMap(kwargs, self._register_defaults)
 
-        return reg(queue_name, queue_topic, f, **kwargs)
+        return reg(queue_name, queue_routing, f, **kwargs)
 
     def autoregister(self, f, prefix = ""):
         """Register a function that was decorated with @endpoint.
         """
         queue_name = f._queue_name and _prefix(prefix, f._queue_name)
-        queue_topic = _prefix(prefix, f._queue_topic or f.__name__)
 
-        return self.register_x(f._endp_type, queue_name, queue_topic,
+        if isinstance(f._queue_routing, Match):
+            queue_routing = f._queue_routing
+        else:
+            queue_routing = _prefix(prefix, f._queue_routing or f.__name__)
+
+        return self.register_x(f._endp_type, queue_name, queue_routing,
                                                 f, **f._queue_kwargs)
 
     async def autoconnect(self, obj, prefix = ""):
